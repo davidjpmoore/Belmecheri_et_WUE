@@ -69,38 +69,6 @@ setwd("D:/Dropbox/rProjectsShare/Belmecheri_et_WUE/data/")
 save(Howland, file = "Howland.ameriflux.allsites.L2_data.05Mar2016.RData")
 save(Harvard, file = "Harvard.ameriflux.allsites.L2_data.05Mar2016.RData")
 
-library(dplyr)
-library(ggplot2)
-library(tidyr)
-junk2005 = filter(Howland,YEAR==2005)
-junk2005a = filter(junk2005,GAP==0)
-plot(junk2005a$DOY,junk2005a$GPP)
-
-junk=Howland %>%
-filter(GAP==0) %>%
-  mutate(PRECIND=PREC>0, PREClag1 = lag(PREC>0), PREClag2 = lag(PREClag1==TRUE) ) %>%
-  mutate(PREC2dayINDlst = 'TRUE' %in% list(PRECIND,PREClag1,PREClag2)) %>%
-  mutate(WUE=GPP/LE)
-
-
-list1=c(junk$PRECIND,junk$PREClag1,junk$PREClag2)
-
-for (i in 1:length(junk$PREC))
-  
-{
-  PREC2dayINDlst[i]='TRUE'%in% list1[i] 
-  }
-
-
-
-plot(junk$VPD[junk$VPD>-100],junk$WUE[junk$VPD>-100])
-
-
-#there are gaps in the Howland Data
-#there are gaps in VPD which are not the same as the NEE or GPP data
-#summarize by day - 
-#Count the gaps per day - new variables 
-
 
 
 

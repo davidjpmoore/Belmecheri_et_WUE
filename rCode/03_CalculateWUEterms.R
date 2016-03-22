@@ -10,6 +10,12 @@ library(dplyr)
 library(ggplot2)
 library(tidyr)
 
+Havard=load ("./data/Harvard.ameriflux.allsites.L2_data.05Mar2016.RData")
+Howland=load("./data/Howland.ameriflux.allsites.L2_data.05Mar2016.RData")
+
+hist(Harvard$GAP)
+plot(Harvard$GPP[Harvard$GAP==0])
+
 #define constants
 rhoH2O = 1 #density of water (1mm H2O * m2 = 1 kg)
 LHVAP = 2501000 #latent heat of evaporation J/kg @ 0 C
@@ -37,9 +43,7 @@ EVAPOtrans = LE/2501000
 
 
 Howland_gapless=Howland %>%
-  filter(GAP==0) %>% #remove gaps
-  filter(LE>0) %>% #remove neg LE values
-  filter(VPD>0) %>% #remove neg VPD values
+  filter(GAP==-1) %>% #remove gaps
   mutate(PRECIND=PREC>0, PREClag1 = lag(PREC>0), PREClag2 = lag(PREClag1==TRUE) ) %>%
   mutate(PREC2dayINDlst = 'TRUE' %in% list(PRECIND,PREClag1,PREClag2)) %>%
   mutate(EVAPOtrans = LE/2501000, WUE=GPP/EVAPOtrans, WUEintrinsic=WUE*VPD)
@@ -47,14 +51,24 @@ Howland_gapless=Howland %>%
 # 
 # There are anomolously high instantaneous WUE numbers - should aggregate to daily before we calculate WUE
 
-Harvard_gapless=Harvard %>%
-  filter(GAP==0) %>% #remove gaps
-  filter(LE>0) %>% #remove neg LE values
-  filter(VPD>0) %>% #remove neg VPD values
-  mutate(PRECIND=PREC>0, PREClag1 = lag(PREC>0), PREClag2 = lag(PREClag1==TRUE) ) %>%
-  mutate(PREC2dayINDlst = 'TRUE' %in% list(PRECIND,PREClag1,PREClag2)) %>%
-  mutate(EVAPOtrans = LE/2501000, WUE=GPP/EVAPOtrans, WUEintrinsic=WUE*VPD)
-
+Harvard_gapless=Harvard%>%
+  filter(GPP>-1) %>% #remove gaps
+  filter(LE>-1) %>% #remove gaps
+  filter(VPD >-1) %>% #remove gaps
+  group_by(YEAR,DOY)  
+  
+  
+  
+  HarvardDaily=summarise_each(Harvard_gapless, funs(sum))
+  
+WUEdaily = HarvardDaily %>%
+  mutate(EVAPOtrans = LE/2501000, WUE=GPP/EVAPOtrans, WUEintrinsic=WUE*VPD)  %>%
+  filter (WUE>0)
+  
+plot(Harvard$LE)
+plot(WUEdaily$PREC, WUEdaily$EVAPOtrans)
+  
+plot(HarvardDaily$DOY[HarvardDaily$WUE<10],HarvardDaily$WUE[HarvardDaily$WUE<10])
 # 
 # Diagnostic plots and checks
 

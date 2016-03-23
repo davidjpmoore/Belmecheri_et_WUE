@@ -17,8 +17,11 @@ hist(Harvard$GAP)
 plot(Harvard$GPP[Harvard$GAP==0])
 
 #define constants
-rhoH2O = 1 #density of water (1mm H2O * m2 = 1 kg)
-LHVAP = 2501000 #latent heat of evaporation J/kg @ 0 C
+rhoH2O = 1000 #density of water (1mm H2O * m2 = 1 kg)
+
+#1000 kg/m^3 
+LHVAP = 2502000 #latent heat of evaporation J/kg @ 0 C
+SecPerhalfhour = 30*60 #seconds per half hour
 SecPerDay = 86400 #seconds per day
 #assume no sublimation
 
@@ -37,67 +40,142 @@ SecPerDay = 86400 #seconds per day
 # meter (assuming a water density of 1000 kg m-3).
 
 # LE = LHVAP*EVAPOtrans
-EVAPOtrans = LE/2501000
+
+#molecular weights to convert from moles to g
+MolwtC = 12.0107
+MolwtO2 =16*2 
+MolwtCO2 = 44.01
 
 # VPsat = 0.611.exp[(17.3*T)/(T+237.3)]
 
 
+# 
+# Harvard
+# 
+Harvard_gapless=Harvard %>%
+  filter(GAP==0) %>% #remove gaps
+  mutate(LEgaps = 0) %>% #define code for LE gaps
+  mutate(LEgaps = replace (LEgaps, LE==-9999, 1)) %>% #flag = 1 if there is a gap
+  mutate(LE = replace(LE, LE==-9999, NA)) %>% #replace -9999 with NA in r
+  mutate(LE = replace(LE, LE<0, 0)) %>% #replace neg values with zeros
+  mutate(VPDgaps = 0) %>%  #define code for VPD gaps
+  mutate(GPP = replace(GPP, GPP<0, 0)) %>% #replace neg GPP values with 0
+  mutate(VPDgaps = replace (VPDgaps, VPD==-9999, 1)) %>%  
+  mutate(VPD = replace(VPD, VPD==-9999, NA)) %>% #replace -9999 with NA in r
+  mutate(PREC = replace(PREC, PREC==-9999, NA)) %>% #flag = 1 if there is a gap
+  mutate(LHVAP_T=LHVAP-2308*TA) %>% #modulate latent heat of evap by ambient T
+  #GPP is reported in micromoles CO2 per m^2 per sec
+  #we want GPP in gC per m^2 per time step | time step is 30 minutes
+  mutate(GPPgC = (GPP/1000000)*(SecPerhalfhour*MolwtC)) %>%  #GPP in gC
+  mutate(EVAPOtrans = (LE/LHVAP_T)*SecPerhalfhour) #calculate ET per 30 minutes
+
+
+Harvard_daily = group_by(Harvard_gapless,YEAR,DOY)
+# 
+# Calculate mean for ET, VPD and GPP ignoring NA  
+# 
+HarvardFilling = Harvard_daily %>%
+  summarise(ETfill=mean(EVAPOtrans, na.rm = TRUE), VPDfill=mean(VPD, na.rm = TRUE),GPPfill=mean(GPPgC, na.rm = TRUE), LEgapsCT=sum(LEgaps), VPDgapsCT=sum(VPDgaps))  %>%
+  select(YEAR,DOY,ETfill, VPDfill, GPPfill, LEgapsCT, VPDgapsCT) 
+
+#join back by YEAR and DOY
+HarvardFill01 = Harvard_daily  %>%
+  left_join(HarvardFilling)  %>%
+  mutate(EVAPOtrans = replace(EVAPOtrans, LEgapsCT>20, ETfill)) %>% #gapfill ET
+  mutate(VPD = replace(VPD, VPDgapsCT>20, VPDfill))  #gapfill ET
+
+
+# Harvard_daySum = Harvard_daily %>%
+#   summarise( n=n(),ETdaily=sum(EVAPOtrans, na.rm = TRUE), VPDdaily=mean(VPD, na.rm = TRUE),GPPdaily=sum(GPPgC, na.rm = TRUE),Precip=sum(PREC, na.rm = TRUE), LEgapsCT=sum(LEgaps), VPDgapsCT=sum(VPDgaps))
+
+
+Harvard_daySumFilled = HarvardFill01 %>%
+  summarise( n=n(),ETdaily=sum(EVAPOtrans, na.rm = TRUE), VPDdaily=mean(VPD, na.rm = TRUE),GPPdaily=sum(GPPgC, na.rm = TRUE),Precip=sum(PREC, na.rm = TRUE), LEgapsCT=sum(LEgaps), VPDgapsCT=sum(VPDgaps))
+
+
+HarvardWUE =Harvard_daySumFilled %>%
+  mutate (precipFlag=0) %>%
+  mutate (precipLagged=lag(Precip)) %>%
+  mutate(precipFlag =replace(precipFlag,Precip>0,1)) %>%
+  mutate(precipFlag =replace(precipFlag,lag(Precip)>0,1)) %>%
+  mutate(precipFlag =replace(precipFlag,lag(precipLagged)>0,1)) %>%
+  filter(precipFlag==0)%>%
+  mutate(WUE_simple=GPPdaily/ETdaily, WUEintrinsic=WUE_simple*VPDdaily) %>%
+  filter(WUE_simple<100) %>%
+  
+  mutate (ETobs = 0) %>%
+  mutate(ETobs =replace(ETobs,ETdaily>0,1)) %>%
+  mutate (GPPobs = 0) %>%
+  mutate(GPPobs =replace(GPPobs,GPPdaily>0,1)) %>%
+  mutate (VPDobs = 0) %>%
+  mutate(VPDobs =replace(VPDobs,VPDdaily>0,1))
+
+Harvard_AnnWUE = group_by(HarvardWUE,YEAR) %>%
+  summarise( n=n(), GPP=median(GPPdaily), GPPobs=sum(GPPobs), ET=median(ETdaily), ETobs=sum(ETobs), WUEmed = median(WUE_simple), WUEintrinsicmed=median(WUEintrinsic), WUEmean = mean(WUE_simple), WUEintrinsicmean=mean(WUEintrinsic), VPDobs=sum(VPDobs) )
+
+write.csv(Harvard_AnnWUE, file ="./data/HarvardWUEstats.csv" )
+
+# 
+# Howland
 Howland_gapless=Howland %>%
-  filter(GAP==-1) %>% #remove gaps
-  mutate(PRECIND=PREC>0, PREClag1 = lag(PREC>0), PREClag2 = lag(PREClag1==TRUE) ) %>%
-  mutate(PREC2dayINDlst = 'TRUE' %in% list(PRECIND,PREClag1,PREClag2)) %>%
-  mutate(EVAPOtrans = LE/2501000, WUE=GPP/EVAPOtrans, WUEintrinsic=WUE*VPD)
+  filter(GAP==0) %>% #remove gaps
+  mutate(LEgaps = 0) %>% #define code for LE gaps
+  mutate(LEgaps = replace (LEgaps, LE==-9999, 1)) %>% #flag = 1 if there is a gap
+  mutate(LE = replace(LE, LE==-9999, NA)) %>% #replace -9999 with NA in r
+  mutate(LE = replace(LE, LE<0, 0)) %>% #replace neg values with zeros
+  mutate(VPDgaps = 0) %>%  #define code for VPD gaps
+  mutate(GPP = replace(GPP, GPP<0, 0)) %>% #replace neg GPP values with 0
+  mutate(VPDgaps = replace (VPDgaps, VPD==-9999, 1)) %>%  
+  mutate(VPD = replace(VPD, VPD==-9999, NA)) %>% #replace -9999 with NA in r
+  mutate(PREC = replace(PREC, PREC==-9999, NA)) %>% #flag = 1 if there is a gap
+  mutate(LHVAP_T=LHVAP-2308*TA) %>% #modulate latent heat of evap by ambient T
+  #GPP is reported in micromoles CO2 per m^2 per sec
+  #we want GPP in gC per m^2 per time step | time step is 30 minutes
+  mutate(GPPgC = (GPP/1000000)*(SecPerhalfhour*MolwtC)) %>%  #GPP in gC
+  mutate(EVAPOtrans = (LE/LHVAP_T)*SecPerhalfhour) #calculate ET per 30 minutes
 
+
+Howland_daily = group_by(Howland_gapless,YEAR,DOY)
 # 
-# There are anomolously high instantaneous WUE numbers - should aggregate to daily before we calculate WUE
-
-Harvard_gapless=Harvard%>%
-  filter(GPP>-1) %>% #remove gaps
-  filter(LE>-1) %>% #remove gaps
-  filter(VPD >-1) %>% #remove gaps
-  group_by(YEAR,DOY)  
-  
-  
-  
-  HarvardDaily=summarise_each(Harvard_gapless, funs(sum))
-  
-WUEdaily = HarvardDaily %>%
-  mutate(EVAPOtrans = LE/2501000, WUE=GPP/EVAPOtrans, WUEintrinsic=WUE*VPD)  %>%
-  filter (WUE>0)
-  
-plot(Harvard$LE)
-plot(WUEdaily$PREC, WUEdaily$EVAPOtrans)
-  
-plot(HarvardDaily$DOY[HarvardDaily$WUE<10],HarvardDaily$WUE[HarvardDaily$WUE<10])
+# Calculate mean for ET, VPD and GPP ignoring NA  
 # 
-# Diagnostic plots and checks
+HowlandFilling = Howland_daily %>%
+  summarise(ETfill=mean(EVAPOtrans, na.rm = TRUE), VPDfill=mean(VPD, na.rm = TRUE),GPPfill=mean(GPPgC, na.rm = TRUE), LEgapsCT=sum(LEgaps), VPDgapsCT=sum(VPDgaps))  %>%
+  select(YEAR,DOY,ETfill, VPDfill, GPPfill, LEgapsCT, VPDgapsCT) 
 
-# plot(Howland_gapless$VPD, Howland_gapless$EVAPOtrans*SecPerDay) # fluxes are in per second - this hack gives approx daily values for EACH Obs 
-# plot(Howland_gapless$DOY, Howland_gapless$WUEintrinsic)
-# plot(Howland_gapless$DOY, Howland_gapless$WUE)
-
-
-# 
-# Create flag to remove rain days and subsequent 3 days 
-# This is currently nonsense - the lags are 30 minute time periods ... it makes no sense!
-How.PREC2dayINDlst=Howland_gapless$PRECIND
-ThreeDayPRECIP_how=c(Howland_gapless$PRECIND,Howland_gapless$PREClag1,Howland_gapless$PREClag2)
-for (i in 1:length(Howland_gapless$PREC))
-{
-  How.PREC2dayINDlst[i]='TRUE'%in% ThreeDayPRECIP_how[i] 
-}
-
-table(How.PREC2dayINDlst)["TRUE"]
-table(Howland_gapless$PRECIND)["TRUE"]
-table(Howland_gapless$PREClag1)["TRUE"]
+#join back by YEAR and DOY
+HowlandFill01 = Howland_daily  %>%
+  left_join(HowlandFilling)  %>%
+  mutate(EVAPOtrans = replace(EVAPOtrans, LEgapsCT>20, ETfill)) %>% #gapfill ET
+  mutate(VPD = replace(VPD, VPDgapsCT>20, VPDfill))  #gapfill ET
 
 
+# Howland_daySum = Howland_daily %>%
+#   summarise( n=n(),ETdaily=sum(EVAPOtrans, na.rm = TRUE), VPDdaily=mean(VPD, na.rm = TRUE),GPPdaily=sum(GPPgC, na.rm = TRUE),Precip=sum(PREC, na.rm = TRUE), LEgapsCT=sum(LEgaps), VPDgapsCT=sum(VPDgaps))
 
 
-plot(junk$VPD[junk$VPD>-100],junk$WUE[junk$VPD>-100])
+Howland_daySumFilled = HowlandFill01 %>%
+  summarise( n=n(),ETdaily=sum(EVAPOtrans, na.rm = TRUE), VPDdaily=mean(VPD, na.rm = TRUE),GPPdaily=sum(GPPgC, na.rm = TRUE),Precip=sum(PREC, na.rm = TRUE), LEgapsCT=sum(LEgaps), VPDgapsCT=sum(VPDgaps))
 
 
-#there are gaps in the Howland Data
-#there are gaps in VPD which are not the same as the NEE or GPP data
-#summarize by day - 
-#Count the gaps per day - new variables 
+HowlandWUE =Howland_daySumFilled %>%
+  mutate (precipFlag=0) %>%
+  mutate (precipLagged=lag(Precip)) %>%
+  mutate(precipFlag =replace(precipFlag,Precip>0,1)) %>%
+  mutate(precipFlag =replace(precipFlag,lag(Precip)>0,1)) %>%
+  mutate(precipFlag =replace(precipFlag,lag(precipLagged)>0,1)) %>%
+  filter(precipFlag==0)%>%
+  mutate(WUE_simple=GPPdaily/ETdaily, WUEintrinsic=WUE_simple*VPDdaily) %>%
+  filter(WUE_simple<100) %>%
+  
+  mutate (ETobs = 0) %>%
+  mutate(ETobs =replace(ETobs,ETdaily>0,1)) %>%
+  mutate (GPPobs = 0) %>%
+  mutate(GPPobs =replace(GPPobs,GPPdaily>0,1)) %>%
+  mutate (VPDobs = 0) %>%
+  mutate(VPDobs =replace(VPDobs,VPDdaily>0,1))
+
+Howland_AnnWUE = group_by(HowlandWUE,YEAR) %>%
+  summarise( n=n(), GPP=median(GPPdaily), GPPobs=sum(GPPobs), ET=median(ETdaily), ETobs=sum(ETobs), WUEmed = median(WUE_simple), WUEintrinsicmed=median(WUEintrinsic), WUEmean = mean(WUE_simple), WUEintrinsicmean=mean(WUEintrinsic), VPDobs=sum(VPDobs) )
+
+write.csv(Howland_AnnWUE, file ="./data/HowlandWUEstats.csv" )

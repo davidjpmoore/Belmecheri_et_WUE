@@ -10,11 +10,19 @@ library(dplyr)
 library(ggplot2)
 library(tidyr)
 
+#Run analysis on FLUXNET2015 data
+#use 5th en 95th percentile
+
+#setwd("D:/Dropbox/rProjectsShare/Belmecheri_et_WUE")
+#Harvard
 Havard=load ("./data/Harvard.ameriflux.allsites.L2_data.05Mar2016.RData")
+
+#Replace Howland with June update
 Howland=load("./data/Howland.ameriflux.allsites.L2_data.05Mar2016.RData")
 
 hist(Harvard$GAP)
-plot(Harvard$GPP[Harvard$GAP==0])
+plot(Harvard$GAP[Harvard$GPP<0], Harvard$GPP[Harvard$GPP<0])
+Harvard$GPP[Harvard$GAP==-1]
 
 #define constants
 rhoH2O = 1000 #density of water (1mm H2O * m2 = 1 kg)
@@ -111,11 +119,15 @@ HarvardWUE =Harvard_daySumFilled %>%
   mutate(VPDobs =replace(VPDobs,VPDdaily>0,1))
 
 Harvard_AnnWUE = group_by(HarvardWUE,YEAR) %>%
-  summarise( n=n(), GPP=median(GPPdaily), GPPobs=sum(GPPobs), ET=median(ETdaily), ETobs=sum(ETobs), WUEmed = median(WUE_simple), WUEintrinsicmed=median(WUEintrinsic), WUEmean = mean(WUE_simple), WUEintrinsicmean=mean(WUEintrinsic), VPDobs=sum(VPDobs) )
+  summarise( n=n(), GPP=median(GPPdaily), GPPobs=sum(GPPobs), ET=median(ETdaily), ETobs=sum(ETobs), WUEmed = median(WUE_simple), WUEintrinsicmed=median(WUEintrinsic), WUEmean = mean(WUE_simple), WUEintrinsicmean=mean(WUEintrinsic), VPDobs=sum(VPDobs), VPDmedian=median(VPDdaily), VPDmean=mean(VPDdaily))
 
 write.csv(Harvard_AnnWUE, file ="./data/HarvardWUEstats.csv" )
 
 # 
+# Update Howland data
+#
+#
+
 # Howland
 Howland_gapless=Howland %>%
   filter(GAP==0) %>% #remove gaps
@@ -176,6 +188,6 @@ HowlandWUE =Howland_daySumFilled %>%
   mutate(VPDobs =replace(VPDobs,VPDdaily>0,1))
 
 Howland_AnnWUE = group_by(HowlandWUE,YEAR) %>%
-  summarise( n=n(), GPP=median(GPPdaily), GPPobs=sum(GPPobs), ET=median(ETdaily), ETobs=sum(ETobs), WUEmed = median(WUE_simple), WUEintrinsicmed=median(WUEintrinsic), WUEmean = mean(WUE_simple), WUEintrinsicmean=mean(WUEintrinsic), VPDobs=sum(VPDobs) )
+  summarise( n=n(), GPP=median(GPPdaily), GPPobs=sum(GPPobs), ET=median(ETdaily), ETobs=sum(ETobs), WUEmed = median(WUE_simple), WUEintrinsicmed=median(WUEintrinsic), WUEmean = mean(WUE_simple), WUEintrinsicmean=mean(WUEintrinsic), VPDobs=sum(VPDobs), VPDmedian=median(VPDdaily), VPDmean=mean(VPDdaily))
 
 write.csv(Howland_AnnWUE, file ="./data/HowlandWUEstats.csv" )

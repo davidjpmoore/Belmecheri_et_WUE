@@ -26,8 +26,12 @@
 # setwd("D:/Sites_DOE/AmeriFlux/Niwot Ridge/L2_gap_filled/V008")
 # filepath="D:/Sites_DOE/AmeriFlux/Niwot Ridge/L2_gap_filled/V008/"
 
-setwd("D:/GlobalDatasets/ameriflux.allsites.L2_data.05Mar2016/")
 
+# modify working directory and "filepath"
+
+setwd("D:/GlobalDatasets/ameriflux.allsites.L2_data.05Mar2016/")
+#note this was updated by Dave Moore - downloaded Gap filled data on June 17th
+#link to UA desktop machine
 
 # 
 # Howland
@@ -41,17 +45,14 @@ files<-substr(tempFilelist,7,14)
 # get the AmeriFlux site code
 site<-substr(tempFilelist[1],7,9)
 # get the data and header from the L2 files
-Howland = do.call("rbind", lapply(paste0(filepath,tempFilelist), function(x) read.csv(x, skip=20,header=FALSE,stringsAsFactors = FALSE)))
+HowlandHo1 = do.call("rbind", lapply(paste0(filepath,tempFilelist), function(x) read.csv(x, skip=20,header=FALSE,stringsAsFactors = FALSE)))
 AmFluxheader=read.csv(paste0(filepath,tempFilelist[1]),skip=17, strip.white=TRUE, nrows=1 ,header=FALSE,stringsAsFactors=FALSE)
-colnames(Howland)<-AmFluxheader
-
-#hack Howland2009.xls
-#hack Howland20102011.xls
+colnames(HowlandHo1)<-AmFluxheader
 
 # 
 # Harvard
 # 
-
+#data up to date in March 2016 - still same version on June 17th 
 # read all the *.csv files in the working directory
 filepath="Harvard_Forest/gap_filled/"
 #change to reflect file path
@@ -61,13 +62,15 @@ files<-substr(tempFilelist,7,14)
 # get the AmeriFlux site code
 site<-substr(tempFilelist[1],7,9)
 # get the data and header from the L2 files
-Harvard = do.call("rbind", lapply(paste0(filepath,tempFilelist), function(x) read.csv(x, skip=20,header=FALSE,stringsAsFactors = FALSE)))
+HarvardHa1 = do.call("rbind", lapply(paste0(filepath,tempFilelist), function(x) read.csv(x, skip=20,header=FALSE,stringsAsFactors = FALSE)))
 AmFluxheader=read.csv(paste0(filepath,tempFilelist[1]),skip=17, strip.white=TRUE, nrows=1 ,header=FALSE,stringsAsFactors=FALSE)
-colnames(Harvard)<-AmFluxheader
+colnames(HarvardHa1)<-AmFluxheader
+
+
 
 setwd("D:/Dropbox/rProjectsShare/Belmecheri_et_WUE/data/")
-save(Howland, file = "Howland.ameriflux.allsites.L2_data.05Mar2016.RData")
-save(Harvard, file = "Harvard.ameriflux.allsites.L2_data.05Mar2016.RData")
+save(HowlandHo1, file = "Howland.ameriflux.allsites.L2_data.05Mar2016.RData")
+save(HarvardHa1, file = "Harvard.ameriflux.allsites.L2_data.05Mar2016.RData")
 
 
 

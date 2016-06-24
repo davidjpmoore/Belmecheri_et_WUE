@@ -15,14 +15,14 @@ library(tidyr)
 #check
 #setwd("D:/Dropbox/rProjectsShare/Belmecheri_et_WUE")
 #Harvard
-Havard=load ("./data/Harvard.ameriflux.allsites.L2_data.05Mar2016.RData")
+load ("./data/Harvard.ameriflux.allsites.L2_data.05Mar2016.RData")
 
 #Replace Howland with June update
-Howland=load("./data/Howland.ameriflux.allsites.L2_data.05Mar2016.RData")
+load("./data/Howland.ameriflux.allsites.L2_data.05Mar2016.RData")
 
-hist(Harvard$GAP)
-plot(Harvard$GAP[Harvard$GPP<0], Harvard$GPP[Harvard$GPP<0])
-Harvard$GPP[Harvard$GAP==-1]
+hist(HarvardHa1$GAP)
+plot(HarvardHa1$GAP[HarvardHa1$GPP<0], HarvardHa1$GPP[HarvardHa1$GPP<0])
+HarvardHa1$GPP[HarvardHa1$GAP==-1]
 
 #define constants
 rhoH2O = 1000 #density of water (1mm H2O * m2 = 1 kg)
@@ -60,7 +60,7 @@ MolwtCO2 = 44.01
 # 
 # Harvard
 # 
-Harvard_gapless=Harvard %>%
+Harvard_gapless=HarvardHa1 %>%
   filter(GAP==0) %>% #remove gaps
   mutate(LEgaps = 0) %>% #define code for LE gaps
   mutate(LEgaps = replace (LEgaps, LE==-9999, 1)) %>% #flag = 1 if there is a gap
@@ -129,7 +129,7 @@ write.csv(Harvard_AnnWUE, file ="./data/HarvardWUEstats.csv" )
 #
 
 # Howland
-Howland_gapless=Howland %>%
+Howland_gapless=HowlandHo1 %>%
   filter(GAP==0) %>% #remove gaps
   mutate(LEgaps = 0) %>% #define code for LE gaps
   mutate(LEgaps = replace (LEgaps, LE==-9999, 1)) %>% #flag = 1 if there is a gap
@@ -190,4 +190,4 @@ HowlandWUE =Howland_daySumFilled %>%
 Howland_AnnWUE = group_by(HowlandWUE,YEAR) %>%
   summarise( n=n(), GPP=median(GPPdaily), GPPobs=sum(GPPobs), ET=median(ETdaily), ETobs=sum(ETobs), WUEmed = median(WUE_simple), WUEintrinsicmed=median(WUEintrinsic), WUEmean = mean(WUE_simple), WUEintrinsicmean=mean(WUEintrinsic), VPDobs=sum(VPDobs), VPDmedian=median(VPDdaily), VPDmean=mean(VPDdaily))
 
-write.csv(Howland_AnnWUE, file ="./data/HowlandWUEstats.csv" )
+write.csv(Howland_AnnWUE, file ="./data/HowlandWUEstats.csv")

@@ -31,6 +31,7 @@ rhoH2O = 1000 #density of water (1mm H2O * m2 = 1 kg)
 LHVAP = 2502000 #latent heat of evaporation J/kg @ 0 C
 SecPerhalfhour = 30*60 #seconds per half hour
 SecPerDay = 86400 #seconds per day
+SecPerYear =31536000
 #assume no sublimation
 
 #define RHO 1.3 // air density (kg/m^3)

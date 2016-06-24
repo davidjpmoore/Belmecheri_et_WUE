@@ -12,7 +12,7 @@ library(tidyr)
 
 #Run analysis on FLUXNET2015 data
 #use 5th en 95th percentile
-
+#check
 #setwd("D:/Dropbox/rProjectsShare/Belmecheri_et_WUE")
 #Harvard
 Havard=load ("./data/Harvard.ameriflux.allsites.L2_data.05Mar2016.RData")
